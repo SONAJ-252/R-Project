@@ -1,0 +1,622 @@
+---
+title: "R assessment 2"
+output:
+  pdf_document: default
+  html_document: default
+date: "2022-11-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r pressure, echo=FALSE}
+library(tidyverse)
+library(corrplot)
+library(GGally)
+library(leaps)
+library(ggfortify)
+library(car)
+```
+
+```{r cars}
+df <- read.csv("/Users/parkjs9416/Desktop/R_project2/Life Expectancy Data.csv")
+```
+
+
+```{r}
+#Checking and Removing N/A
+sum(is.na(df))
+```
+This dataset includes 2563 of N/A
+
+Removing unneccessary columns which are year location and status
+```{r}
+df <- df[, -c(1:2)]
+```
+
+```{r}
+df <- drop_na(df)
+```
+
+```{r}
+sum(is.na(df))
+```
+
+
+```{r}
+levels(df$Status) <- c(1,0)
+#turned the status into the 0 and 1
+```
+
+
+```{r}
+df$Status = as.numeric(df$Status=='Developing')
+#turned the status into the 0 and 1 upper one not worked
+#developing == 1, and data is numeric data
+```
+making a new data frame which has same variables like original data frame, it is because box-cox was not
+possible with the original data frame, so new data frame but has same variables and obs were made
+```{r}
+new_data1 <- df %>% select(Life.expectancy,Status,Adult.Mortality,infant.deaths,
+                           Alcohol,percentage.expenditure,Hepatitis.B,Measles,BMI,under.five.deaths,
+                          Polio,Total.expenditure,Diphtheria,HIV.AIDS,GDP,thinness..1.19.years,
+                          thinness.5.9.years,Income.composition.of.resources,Population,Schooling)
+```
+
+```{r}
+#move Life.expectancy column behind of Status
+df<- df %>% relocate(Status, .after = Life.expectancy)
+```
+
+
+Explore the data
+```{r}
+#produce appropriate visualisations and summary statistics which reflect the key relationships
+df_life <- cor(new_data1)
+life <- df_life[1,1:20]
+life
+```
+```{r}
+summary(new_data1)
+```
+
+
+
+```{r}
+my_data1 <- new_data1[, c(1:11)]
+my_data2 <-  new_data1[,c(1,12:20)]
+```
+
+```{r}
+ggpairs(my_data1,
+    upper = list(continuous = wrap("cor", size = 3)),
+    lower = list(continuous = wrap("points", alpha = 0.3,    size=0.1)))+
+  theme_grey(base_size = 5)
+ggpairs(my_data1,
+        upper = list(continuous = wrap("cor", size = 3)),
+        lower = list(continuous = wrap("points", alpha = 0.3,    size=0.1)))+
+  theme_grey(base_size = 5)
+```
+
+
+```{r}
+ggcorr(new_data1, label = TRUE, label_round = 2,label_size = 2,hjust=1,
+       layout.exp = 5,
+       name="Correlation")+
+  ggplot2::labs(title = "Correlation of each variable")
+
+
+```
+
+```{r}
+#full model
+full_mod <- lm(Life.expectancy~., data=new_data1)
+vif(full_mod)
+```
+Infant.death and uner.five.death --> removed
+
+```{r}
+full_mod<-lm(Life.expectancy~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+             under.five.deaths+BMI+Income.composition.of.resources+percentage.expenditure+
+             Polio+thinness..1.19.years+thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+             Total.expenditure+GDP+Schooling,data=new_data1)
+vif(full_mod)
+```
+```{r}
+full_mod<-lm(Life.expectancy~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+               under.five.deaths+BMI+Income.composition.of.resources+Polio+
+               thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+               Total.expenditure+GDP+Schooling,data=new_data1)
+vif(full_mod)
+```
+
+```{r}
+new_data2 <- df %>% select(Life.expectancy,Status,Adult.Mortality,
+                           Alcohol,Hepatitis.B,Measles,BMI,under.five.deaths,
+                          Polio,Total.expenditure,Diphtheria,HIV.AIDS,GDP,
+                          thinness.5.9.years,Income.composition.of.resources,Population,Schooling)
+```
+
+```{r}
+
+#heatmap with new data2
+ggcorr(new_data2, label = TRUE, label_round = 2,label_size = 2,hjust=1,
+       layout.exp = 5,
+       name="Correlation") + ggplot2::labs(title = "Correlation of after Multicollinearity")
+
+
+```
+
+
+
+```{r}
+autoplot(full_mod)
+```
+
+```{r}
+ggplot(new_data2) + geom_boxplot(aes(Life.expectancy ,fill = Life.expectancy)) 
+```
+
+The following histograms are for checking variables whether transformation is needed or not.
+```{r}
+#Checking variables which are needed to be transformed
+hist(new_data2$Alcohol)
+hist(sqrt(new_data2$Alcohol))
+scatterplot(Life.expectancy~sqrt(new_data2$Adult.Mortality), data=new_data2)
+hist(log1p(new_data2$Diphtheria))
+hist(sqrt(new_data2$thinness.5.9.years))
+hist(new_data2$Hepatitis.B)
+hist(log1p(new_data2$Hepatitis.B))
+hist(new_data2$Polio)
+hist((new_data2$Polio)^1.5)
+hist(new_data2$GDP)
+hist(log(new_data2$GDP))
+hist(new_data2$HIV.AIDS)
+hist(log10(new_data2$HIV.AIDS))
+hist(new_data2$Hepatitis.B)
+hist(new_data2$Hepatitis.B)
+hist(new_data2$Adult.Mortality)
+hist(sqrt(new_data2$Adult.Mortality))
+hist(new_data2$under.five.deaths)
+hist(log(new_data2$under.five.deaths))
+hist(new_data2$Total.expenditure)
+hist(new_data2$Schooling)
+hist(new_data2$Income.composition.of.resources)
+```
+
+```{r}
+#Transform variables
+hist(new_data2$Adult.Mortality)
+hist(sqrt(new_data2$Adult.Mortality))
+
+hist(new_data2$Alcohol)
+hist(sqrt(new_data2$Alcohol))
+
+hist(new_data2$GDP)
+hist(log(new_data2$GDP))
+
+hist(new_data2$thinness.5.9.years)
+hist(log(new_data2$thinness.5.9.years))
+
+hist(new_data2$Population)
+hist(log(new_data2$Population))
+```
+
+```{r}
+#Refelct transformed data
+new_data2 %>% 
+  mutate(Adult.Mortality=sqrt(Adult.Mortality),
+         Alcohol=sqrt(Alcohol),
+         GDP = log(GDP),
+         thinness.5.9.years = log(thinness.5.9.years),
+         Population = log(Population)) ->
+  new_dataTrans
+```
+
+```{r}
+sum(is.na(new_dataTrans))
+```
+
+
+###Model Building
+```{r}
+#leap and bound model building
+result.life <- leaps(x=new_dataTrans[,2:17], y=new_dataTrans[,1],method = "adjr2",names=names(new_dataTrans)[-1])
+fit <- data.frame(Size = result.life$size,
+                  adjr2=round(result.life$adjr2, 3),
+                  result.life$which, row.names=NULL)
+ggplot(fit)+geom_point(aes(Size, adjr2))
+
+```
+Leap and Bound shows that models with 9, 10, 11 variables can be made and tested
+```{r}
+fit %>% filter(Size == 9)
+fit %>% filter(Size == 10)
+fit %>% filter(Size == 11)
+```
+when it is size 9, variables can be Life.expectancy,Adult.Mortality, percentage.expenditure, BMI, Diphtheria, HIV.AIDS, Income.composition.of.resources, Schooling
+When it is size 10
+When it is size 11
+```{r}
+size_9 <- lm(Life.expectancy ~ Adult.Mortality + Polio + Diphtheria+ HIV.AIDS+
+               GDP+thinness.5.9.years+ Income.composition.of.resources+Schooling, data= new_dataTrans)
+
+size_10 <- lm(Life.expectancy ~ Adult.Mortality + BMI + Polio + Diphtheria+HIV.AIDS+
+                GDP+thinness.5.9.years+Income.composition.of.resources+Schooling,data=new_dataTrans)
+
+size_11<- lm(Life.expectancy ~  Status+Adult.Mortality+BMI+Polio+Diphtheria+HIV.AIDS+GDP+thinness.5.9.years+
+              Income.composition.of.resources+Schooling , data=new_dataTrans)
+```
+
+
+```{r}
+#Stepwise selection
+
+int_mod <- lm(Life.expectancy~ 1, data=new_dataTrans)
+step(int_mod, scope=~Status+Adult.Mortality+HIV.AIDS+Diphtheria+BMI+Income.composition.of.resources+
+       Polio+thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+Total.expenditure+
+       GDP+under.five.deaths+Schooling, direction = "both")
+```
+
+```{r}
+#stepwise mode
+Step_mod <- lm(Life.expectancy ~ Schooling + HIV.AIDS + Adult.Mortality + 
+    Diphtheria + thinness.5.9.years + Income.composition.of.resources + 
+    GDP + Polio + BMI + Status + Measles + Hepatitis.B + Population, 
+    data = new_dataTrans)
+
+```
+
+
+```{r} 
+#Backward selection
+full_mod <- lm(Life.expectancy ~ Status+Adult.Mortality+Alcohol+Hepatitis.B+Measles+BMI+under.five.deaths+
+                 Polio + Total.expenditure+Diphtheria+HIV.AIDS+GDP+thinness.5.9.years+
+                 Income.composition.of.resources+Population+Schooling, data=new_dataTrans)
+drop1(full_mod, test="F",
+      scope=~Status+Adult.Mortality+Alcohol+Hepatitis.B+Measles+BMI+under.five.deaths+
+                 Polio + Total.expenditure+Diphtheria+HIV.AIDS+GDP+thinness.5.9.years+
+                 Income.composition.of.resources+Population+Schooling)
+
+```
+```{r}
+#Total expenditure is the least significant, refit without Total.expenditure
+mod <- lm(Life.expectancy ~ Status+Adult.Mortality+Alcohol+Hepatitis.B+Measles+BMI+under.five.deaths+
+            Polio +Diphtheria+HIV.AIDS+GDP+thinness.5.9.years+Income.composition.of.resources+
+            Population+Schooling, data=new_dataTrans)
+drop1(full_mod, test="F",
+      scope=~Status+Adult.Mortality+Alcohol+Hepatitis.B+Measles+BMI+under.five.deaths+
+                 Polio +Diphtheria+HIV.AIDS+GDP+thinness.5.9.years+
+                 Income.composition.of.resources+Population+Schooling)
+
+```
+```{r}
+#under.five.deaths is the least significant so refit model without under.five.deaths
+mod <- lm(Life.expectancy ~ Status+Adult.Mortality+Alcohol+Hepatitis.B+Measles+BMI+
+            Polio +Diphtheria+HIV.AIDS+GDP+thinness.5.9.years+Income.composition.of.resources+
+            Population+Schooling, data=new_dataTrans)
+drop1(full_mod, test="F",
+      scope=~Status+Adult.Mortality+Alcohol+Hepatitis.B+Measles+BMI+
+                 Polio +Diphtheria+HIV.AIDS+GDP+thinness.5.9.years+
+                 Income.composition.of.resources+Population+Schooling)
+
+
+```
+```{r}
+#now, alcohol is the least significant
+mod <- lm(Life.expectancy ~ Status+Adult.Mortality+Hepatitis.B+Measles+BMI+
+            Polio +Diphtheria+HIV.AIDS+GDP+thinness.5.9.years+Income.composition.of.resources+
+            Population+Schooling, data=new_dataTrans)
+drop1(full_mod, test="F",
+      scope=~Status+Adult.Mortality+Hepatitis.B+Measles+BMI+
+                 Polio +Diphtheria+HIV.AIDS+GDP+thinness.5.9.years+
+                 Income.composition.of.resources+Population+Schooling)
+```
+```{r}
+Back_mod <- lm(Life.expectancy ~ Status+Adult.Mortality+Hepatitis.B+Measles+BMI+
+            Polio +Diphtheria+HIV.AIDS+GDP+thinness.5.9.years+Income.composition.of.resources+
+            Population+Schooling, data=new_dataTrans)
+```
+
+
+```{r}
+#Forward selection
+intercept_mod <- lm(Life.expectancy~1, data=new_dataTrans)
+add1(intercept_mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+```
+
+```{r}
+#due to all value has same Pvalue. So Fvalues are compared and Schooling is chosen
+mod <- lm(Life.expectancy~Schooling, data=new_dataTrans)
+add1(mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+
+```
+```{r}
+mod <- lm(Life.expectancy~Schooling+HIV.AIDS, data=new_dataTrans)
+add1(mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+```
+```{r}
+mod <- lm(Life.expectancy~Schooling+HIV.AIDS+Adult.Mortality, data=new_dataTrans)
+add1(mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+```
+```{r}
+mod <- lm(Life.expectancy~Schooling+HIV.AIDS+Adult.Mortality+Diphtheria, data=new_dataTrans)
+add1(mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+```
+```{r}
+mod <- lm(Life.expectancy~Schooling+HIV.AIDS+Adult.Mortality+Diphtheria+thinness.5.9.years, data=new_dataTrans)
+add1(mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+
+```
+```{r}
+mod <- lm(Life.expectancy~Schooling+HIV.AIDS+Adult.Mortality+Diphtheria+thinness.5.9.years+
+            Income.composition.of.resources, data=new_dataTrans)
+add1(mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+```
+```{r}
+mod <- lm(Life.expectancy~Schooling+HIV.AIDS+Adult.Mortality+Diphtheria+thinness.5.9.years+
+            Income.composition.of.resources+GDP, data=new_dataTrans)
+add1(mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+```
+```{r}
+mod <- lm(Life.expectancy~Schooling+HIV.AIDS+Adult.Mortality+Diphtheria+thinness.5.9.years+
+            Income.composition.of.resources+GDP+BMI, data=new_dataTrans)
+add1(mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+```
+```{r}
+mod <- lm(Life.expectancy~Schooling+HIV.AIDS+Adult.Mortality+Diphtheria+thinness.5.9.years+
+            Income.composition.of.resources+GDP+BMI+Polio, data=new_dataTrans)
+add1(mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+```
+```{r}
+mod <- lm(Life.expectancy~Schooling+HIV.AIDS+Adult.Mortality+Diphtheria+thinness.5.9.years+
+            Income.composition.of.resources+GDP+BMI+Polio+Status, data=new_dataTrans)
+add1(mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+
+```
+
+```{r}
+mod <- lm(Life.expectancy~Schooling+HIV.AIDS+Adult.Mortality+Diphtheria+thinness.5.9.years+
+            Income.composition.of.resources+GDP+BMI+Polio+Status+Measles, data=new_dataTrans)
+add1(mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+```
+
+```{r}
+mod <- lm(Life.expectancy~Schooling+HIV.AIDS+Adult.Mortality+Diphtheria+thinness.5.9.years+
+            Income.composition.of.resources+GDP+BMI+Polio+Status+Measles+Hepatitis.B, data=new_dataTrans)
+add1(mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+```
+```{r}
+mod <- lm(Life.expectancy~Schooling+HIV.AIDS+Adult.Mortality+Diphtheria+thinness.5.9.years+
+            Income.composition.of.resources+GDP+BMI+Polio+Status+Measles+Hepatitis.B+Population, data=new_dataTrans)
+add1(mod, test="F",
+     scope = ~Status+Adult.Mortality+HIV.AIDS+Diphtheria+
+       BMI+Income.composition.of.resources+Polio+
+       thinness.5.9.years+Population+Measles+Hepatitis.B+Alcohol+
+       Total.expenditure+GDP+under.five.deaths+Schooling)
+```
+from the forward selection, it shows the result like above so,forward mod will be
+```{r}
+for_mod <- lm(Life.expectancy ~ Schooling + HIV.AIDS + Adult.Mortality + Diphtheria + 
+                thinness.5.9.years + Income.composition.of.resources + GDP + 
+                BMI + Polio + Status + Measles + Hepatitis.B + Population,data=new_dataTrans)
+```
+
+
+```{r}
+#model with categorical data
+category_mod <- lm(Life.expectancy ~ Schooling + HIV.AIDS + Adult.Mortality + Diphtheria + 
+                thinness.5.9.years + Income.composition.of.resources + GDP + 
+                BMI + Polio + Status + Measles + Hepatitis.B + Population,data=new_dataTrans)
+```
+
+
+```{r}
+CP_PRESS <- function(model, sigma_full){
+res <- resid(model)
+hat_mod <- hatvalues(model)
+CP <- sum(res^2)/sigma_full + 2*length(coef(model)) - length(res)
+PRESS <- sum(res^2/(1-hat_mod)^2)
+list(Cp=CP, PRESS=PRESS)
+}
+```
+
+```{r}
+sigma_q <- summary(int_mod)$sigma^2
+size9_stat <- CP_PRESS(size_9, sigma_q)
+size10_stat <- CP_PRESS(size_10, sigma_q)
+size11_stat <- CP_PRESS(size_11, sigma_q)
+sel_stat <- CP_PRESS(Step_mod, sigma_q)
+```
+
+```{r}
+Life_frame <- data.frame(Model = c("Size_9","Size_10","Size_11","Stepwise"),p = c(8,9,10,13),
+                          AdjR2 = c(summary(size_9)$adj.r.square,
+                          summary(size_10)$adj.r.square,
+                          summary(size_11)$adj.r.square,
+                          summary(Step_mod)$adj.r.square),
+                         CP = c(size9_stat$Cp,size10_stat$Cp,size11_stat$Cp,sel_stat$Cp),
+                         PRESS = c(size9_stat$PRESS,size10_stat$PRESS,size11_stat$PRESS,sel_stat$PRESS))
+
+Life_frame
+```
+Model with size8 shows the smallest Adjusted R-squared, then Stepwise model has the highest Adjusted R-squared value
+From the list of model, It can be found that size_11 of model has Adjusted R-squared of 0.8136134, then second leaset CP and PRESS value,
+
+```{r}
+autoplot(size_9)
+```
+
+```{r}
+autoplot(size_10, title = "Model of Size 10")
+```
+```{r}
+autoplot(size_11)
+```
+
+```{r}
+autoplot(Step_mod)
+```
+Tried the forward and backward
+
+
+```{r}
+
+bc2<- MASS::boxcox(size_10)
+which.max(bc2$y)
+lambda <- bc2$x[which.max(bc2$y)]
+lambda
+
+```
+
+
+
+```{r}
+cox_mod <- lm((((Life.expectancy)^1.959596)-1/1.959596) ~Adult.Mortality + BMI + Polio + Diphtheria+HIV.AIDS+
+                GDP+thinness.5.9.years+Income.composition.of.resources+Schooling,data = new_dataTrans)
+```
+
+
+```{r}
+autoplot(cox_mod)
+```
+```{r}
+summary(cox_mod)
+```
+```{r}
+summary(size_10)
+```
+
+```{r}
+summary(size_10)
+```
+
+```{r}
+category <- lm(Life.expectancy ~ Adult.Mortality + BMI + Polio + Diphtheria+HIV.AIDS+
+                GDP+thinness.5.9.years+Income.composition.of.resources+Schooling+Diphtheria+
+                 Adult.Mortality:Status+HIV.AIDS:Status+GDP:Status+Schooling:Status+BMI:Status,data=new_dataTrans)
+```
+
+```{r}
+ggplot(new_dataTrans)+
+  geom_point(aes(thinness.5.9.years,Life.expectancy, colour = Status))+
+  theme_bw()
+ggplot(new_dataTrans)+
+  geom_point(aes(HIV.AIDS,Life.expectancy, colour = Status))+
+  theme_bw()
+ggplot(new_dataTrans)+
+  geom_point(aes(Income.composition.of.resources,Life.expectancy, colour = Status))+
+  theme_bw()
+ggplot(new_dataTrans)+
+  geom_point(aes(Schooling,Life.expectancy, colour = Status))+
+  theme_bw()
+```
+
+
+```{r}
+summary(category)
+anova(category)
+autoplot(category)
+```
+
+
+
+
+```{r}
+CP_PRESS <- function(model, sigma_full){
+res <- resid(model)
+hat_mod <- hatvalues(model)
+CP <- sum(res^2)/sigma_full + 2*length(coef(model)) - length(res)
+PRESS <- sum(res^2/(1-hat_mod)^2)
+list(Cp=CP, PRESS=PRESS)
+}
+```
+
+```{r}
+sigma_q <- summary(int_mod)$sigma^2
+size9_stat <- CP_PRESS(size_9, sigma_q)
+size10_stat <- CP_PRESS(size_10, sigma_q)
+size11_stat <- CP_PRESS(size_11, sigma_q)
+cox_stat <- CP_PRESS(cox_mod, sigma_q)
+sel_stat <- CP_PRESS(Step_mod, sigma_q)
+```
+
+
+```{r}
+sum(resid(size_9))
+```
+
+--Interpretation of the Model--
+```{r}
+summary(size_10)
+```
+
+```{r}
+anova(size_10)
+
+```
+
+```{r}
+confint(size_10, level=0.95)
+```
+`
+```{r}
+predict(size_10,new_dataTrans,interval = "confidence", level=0.95)
+```
+
+
+
+
